@@ -49,12 +49,33 @@ class RCRest
   ##
   # You are using this version of RCRest
 
-  VERSION = '2.1.1'
+  VERSION = '2.2.0'
 
   ##
   # Abstract Error class.
 
   class Error < RuntimeError; end
+
+  ##
+  # Error raised when communicating with the server
+
+  class CommunicationError < Error
+
+    ##
+    # The original exception
+
+    attr_accessor :original_exception
+
+    ##
+    # Creates a new CommunicationError with +message+ and +original_exception+
+
+    def initialize(original_exception)
+      @original_exception = original_exception
+      message = "Communication error: #{original_exception.message}(#{original_exception.class})"
+      super message
+    end
+
+  end
 
   ##
   # Web services initializer.
@@ -103,6 +124,8 @@ class RCRest
 
       return parse_response(res)
     end
+  rescue SystemCallError, SocketError, Timeout::Error => e
+    raise CommunicationError.new(e)
   rescue OpenURI::HTTPError => e
     xml = REXML::Document.new e.io.read
     check_error xml
@@ -204,6 +227,8 @@ class RCRest
     check_error xml
     
     return parse_response(xml)
+  rescue SystemCallError, SocketError, Timeout::Error => e
+    raise CommunicationError.new(e)
   rescue Net::HTTPError => e
     xml = REXML::Document.new e.res.body
     check_error xml
@@ -234,6 +259,8 @@ class RCRest
     check_error xml
     
     return parse_response(xml)
+  rescue SystemCallError, SocketError, Timeout::Error => e
+    raise CommunicationError.new(e)
   rescue Net::HTTPError => e
     xml = REXML::Document.new e.res.body
     check_error xml

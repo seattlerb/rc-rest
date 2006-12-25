@@ -129,11 +129,11 @@ end
 class TestRCRest < Test::Unit::TestCase
 
   def test_initialize
-    RCRest.new
-  rescue NotImplementedError => e
+    e = assert_raise NotImplementedError do
+      RCRest.new
+    end
+
     assert_equal 'need to implement #intialize and set @url', e.message
-  else
-    flunk 'expected NotImplementedError'
   end
 
   def test_check_error

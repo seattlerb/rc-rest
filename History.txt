@@ -1,7 +1,8 @@
-= 2.1.2
+= 2.2.0
 
 * Moved to seattlerb rubyforge project
 * Moved to p4
+* Wrap communication errors in RCRest::CommunicationError
 
 = 2.1.1
 
