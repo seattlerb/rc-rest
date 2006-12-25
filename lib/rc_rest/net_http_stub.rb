@@ -51,9 +51,14 @@ class Net::HTTP
   def request(req)
     self.class.paths << req.path
     self.class.params << req.body
-    res = Net::HTTPResponse.new '1.0', 200, 'OK'
-    res.body = self.class.responses.shift
-    res
+    response = self.class.responses.shift
+    if response.respond_to? :call then
+      response.call req
+    else
+      res = Net::HTTPResponse.new '1.0', 200, 'OK'
+      res.body = response
+      res
+    end
   end
 
 end
