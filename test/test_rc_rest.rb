@@ -84,6 +84,19 @@ class TestFakeService < Test::Unit::TestCase
     assert_raise FakeService::Error do @fs.do_get end
   end
 
+  def test_do_get_eof_error
+    def @fs.make_url(*args) # HACK extend uri_stub with error raising ability
+      u = Object.new
+      def u.open
+        xml = '<error>you did the bad thing</error>'
+        raise EOFError, 'end of file reached'
+      end
+      return u
+    end
+
+    assert_raise RCRest::CommunicationError do @fs.do_get end
+  end
+
   def test_do_post
     xml = '<result>stuff</result>'
     Net::HTTP.responses << xml

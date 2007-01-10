@@ -124,7 +124,7 @@ class RCRest
 
       return parse_response(res)
     end
-  rescue SystemCallError, SocketError, Timeout::Error => e
+  rescue IOError, SystemCallError, SocketError, Timeout::Error => e
     raise CommunicationError.new(e)
   rescue OpenURI::HTTPError => e
     xml = REXML::Document.new e.io.read
