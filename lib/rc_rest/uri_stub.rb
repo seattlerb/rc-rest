@@ -44,7 +44,12 @@ class URI::HTTP # :nodoc:
 
   def open
     self.class.uris << self.to_s
-    yield StringIO.new(self.class.responses.shift)
+    response = self.class.responses.shift
+    if response.respond_to? :call then
+      response.call
+    else
+      yield StringIO.new(response)
+    end
   end
 
 end

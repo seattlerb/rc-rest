@@ -71,27 +71,37 @@ class TestFakeService < Test::Unit::TestCase
     assert_equal 'http://example.com/method?', URI::HTTP.uris.first
   end
 
-  def test_do_get_error
-    def @fs.make_url(*args) # HACK extend uri_stub with error raising ability
-      u = Object.new
-      def u.open
-        xml = '<error>you did the bad thing</error>'
-        raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
-      end
-      return u
+  def test_do_get_error_400
+    URI::HTTP.responses << proc do
+      xml = '<error>you did the bad thing</error>'
+      raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
     end
 
     assert_raise FakeService::Error do @fs.do_get end
   end
 
+  def test_do_get_error_unhandled
+    URI::HTTP.responses << proc do
+      xml = '<other_error>you did the bad thing</other_error>'
+      raise OpenURI::HTTPError.new('500 Internal Server Error', StringIO.new(xml))
+    end
+
+    e = assert_raise RCRest::CommunicationError do @fs.do_get end
+
+    expected = <<-EOF.strip
+Communication error: 500 Internal Server Error(OpenURI::HTTPError)
+
+unhandled error:
+<other_error>you did the bad thing</other_error>
+    EOF
+
+    assert_equal expected, e.message
+  end
+
   def test_do_get_eof_error
-    def @fs.make_url(*args) # HACK extend uri_stub with error raising ability
-      u = Object.new
-      def u.open
-        xml = '<error>you did the bad thing</error>'
-        raise EOFError, 'end of file reached'
-      end
-      return u
+    URI::HTTP.responses << proc do
+      xml = '<error>you did the bad thing</error>'
+      raise EOFError, 'end of file reached'
     end
 
     assert_raise RCRest::CommunicationError do @fs.do_get end

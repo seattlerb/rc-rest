@@ -129,7 +129,9 @@ class RCRest
   rescue OpenURI::HTTPError => e
     xml = REXML::Document.new e.io.read
     check_error xml
-    raise
+    new_e = CommunicationError.new e
+    new_e.message << "\n\nunhandled error:\n#{xml.to_s}"
+    raise new_e
   end
 
   ##
