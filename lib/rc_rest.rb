@@ -124,11 +124,15 @@ class RCRest
 
       return parse_response(res)
     end
-  rescue IOError, SystemCallError, SocketError, Timeout::Error => e
+  rescue IOError, SystemCallError, SocketError, Timeout::Error,
+         REXML::ParseException => e
     raise CommunicationError.new(e)
   rescue OpenURI::HTTPError => e
-    xml = REXML::Document.new e.io.read
-    check_error xml
+    begin
+      xml = REXML::Document.new e.io.read
+      check_error xml
+    rescue REXML::ParseException => e
+    end
     new_e = CommunicationError.new e
     new_e.message << "\n\nunhandled error:\n#{xml.to_s}"
     raise new_e
@@ -227,14 +231,15 @@ class RCRest
     xml = REXML::Document.new res.body
 
     check_error xml
-    
-    return parse_response(xml)
-  rescue SystemCallError, SocketError, Timeout::Error => e
+
+    parse_response xml
+  rescue SystemCallError, SocketError, Timeout::Error,
+         REXML::ParseException => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
     xml = REXML::Document.new e.res.body
     check_error xml
-    raise
+    raise CommunicationError.new(e)
   end
 
   ##
@@ -259,14 +264,15 @@ class RCRest
     xml = REXML::Document.new res.body
 
     check_error xml
-    
-    return parse_response(xml)
-  rescue SystemCallError, SocketError, Timeout::Error => e
+
+    parse_response xml
+  rescue SystemCallError, SocketError, Timeout::Error,
+         REXML::ParseException => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
     xml = REXML::Document.new e.res.body
     check_error xml
-    raise
+    raise CommunicationError.new(e)
   end
 
 end

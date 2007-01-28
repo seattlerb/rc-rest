@@ -71,6 +71,13 @@ class TestFakeService < Test::Unit::TestCase
     assert_equal 'http://example.com/method?', URI::HTTP.uris.first
   end
 
+  def test_do_get_bad_xml
+    xml = '<result>stuff</result><extra/>'
+    URI::HTTP.responses << xml
+
+    assert_raise RCRest::CommunicationError do @fs.do_get end
+  end
+
   def test_do_get_error_400
     URI::HTTP.responses << proc do
       xml = '<error>you did the bad thing</error>'
@@ -78,6 +85,15 @@ class TestFakeService < Test::Unit::TestCase
     end
 
     assert_raise FakeService::Error do @fs.do_get end
+  end
+
+  def test_do_get_error_400_bad_xml
+    URI::HTTP.responses << proc do
+      xml = '<error>you did the bad thing</error><extra/>'
+      raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
+    end
+
+    assert_raise RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_get_error_unhandled
@@ -123,6 +139,13 @@ unhandled error:
     assert_equal '/method', Net::HTTP.paths.first
   end
 
+  def test_do_post_bad_xml
+    xml = '<result>stuff</result><extra/>'
+    Net::HTTP.responses << xml
+
+    assert_raise RCRest::CommunicationError do @fs.do_post end
+  end
+
   def test_do_post_multipart
     xml = '<result>stuff</result>'
     Net::HTTP.responses << xml
@@ -145,6 +168,13 @@ value\r
 
     assert_equal expected, Net::HTTP.params.first
     assert_equal '/method', Net::HTTP.paths.first
+  end
+
+  def test_do_post_multipart_bad_xml
+    xml = '<result>stuff</result><extra/>'
+    Net::HTTP.responses << xml
+
+    assert_raise RCRest::CommunicationError do @fs.do_post_multipart end
   end
 
 end
