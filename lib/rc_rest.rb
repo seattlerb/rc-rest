@@ -49,7 +49,7 @@ class RCRest
   ##
   # You are using this version of RCRest
 
-  VERSION = '2.2.0'
+  VERSION = '2.2.1'
 
   ##
   # Abstract Error class.
@@ -233,7 +233,7 @@ class RCRest
     check_error xml
 
     parse_response xml
-  rescue SystemCallError, SocketError, Timeout::Error,
+  rescue SystemCallError, SocketError, Timeout::Error, IOError,
          REXML::ParseException => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
@@ -266,7 +266,7 @@ class RCRest
     check_error xml
 
     parse_response xml
-  rescue SystemCallError, SocketError, Timeout::Error,
+  rescue SystemCallError, SocketError, Timeout::Error, IOError,
          REXML::ParseException => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e

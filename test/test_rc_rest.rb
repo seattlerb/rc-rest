@@ -146,6 +146,14 @@ unhandled error:
     assert_raise RCRest::CommunicationError do @fs.do_post end
   end
 
+  def test_do_post_eof_error
+    Net::HTTP.responses << proc do
+      raise IOError, 'end of file reached'
+    end
+
+    assert_raise RCRest::CommunicationError do @fs.do_post end
+  end
+
   def test_do_post_multipart
     xml = '<result>stuff</result>'
     Net::HTTP.responses << xml
@@ -168,6 +176,14 @@ value\r
 
     assert_equal expected, Net::HTTP.params.first
     assert_equal '/method', Net::HTTP.paths.first
+  end
+
+  def test_do_post_multipart_eof_error
+    Net::HTTP.responses << proc do
+      raise EOFError, 'end of file reached'
+    end
+
+    assert_raise RCRest::CommunicationError do @fs.do_post_multipart end
   end
 
   def test_do_post_multipart_bad_xml
