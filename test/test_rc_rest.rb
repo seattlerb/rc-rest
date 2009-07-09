@@ -1,6 +1,5 @@
-require 'test/unit'
 require 'rubygems'
-require 'test/zentest_assertions'
+require 'minitest/autorun'
 require 'rc_rest/uri_stub'
 require 'rc_rest/net_http_stub'
 require 'rc_rest'
@@ -14,7 +13,7 @@ class FakeService < RCRest
   end
 
   def check_error(xml)
-    raise Error, xml.elements['error'].text if xml.elements['error']
+    raise Error, xml.at('error').text if xml.at('error')
   end
 
   def do_get
@@ -35,7 +34,7 @@ class FakeService < RCRest
 
 end
 
-class TestFakeService < Test::Unit::TestCase
+class TestFakeService < MiniTest::Unit::TestCase
 
   def setup
     URI::HTTP.responses = []
@@ -51,7 +50,7 @@ class TestFakeService < Test::Unit::TestCase
   end
 
   def test_check_error
-    xml = REXML::Document.new '<error>you broked it</error>'
+    xml = Nokogiri::XML '<error>you broked it</error>'
     @fs.check_error xml
 
   rescue FakeService::Error => e
@@ -62,7 +61,7 @@ class TestFakeService < Test::Unit::TestCase
   end
 
   def test_do_get
-    xml = '<result>stuff</result>'
+    xml = "<?xml version=\"1.0\"?>\n<result>stuff</result>\n"
     URI::HTTP.responses << xml
 
     result = @fs.do_get
@@ -75,7 +74,7 @@ class TestFakeService < Test::Unit::TestCase
     xml = '<result>stuff</result><extra/>'
     URI::HTTP.responses << xml
 
-    assert_raise RCRest::CommunicationError do @fs.do_get end
+    assert_raises RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_get_error_400
@@ -84,7 +83,7 @@ class TestFakeService < Test::Unit::TestCase
       raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
     end
 
-    assert_raise FakeService::Error do @fs.do_get end
+    assert_raises FakeService::Error do @fs.do_get end
   end
 
   def test_do_get_error_400_bad_xml
@@ -93,25 +92,26 @@ class TestFakeService < Test::Unit::TestCase
       raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
     end
 
-    assert_raise RCRest::CommunicationError do @fs.do_get end
+    assert_raises RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_get_error_unhandled
     URI::HTTP.responses << proc do
-      xml = '<other_error>you did the bad thing</other_error>'
+      xml = "<?xml version=\"1.0\"?>\n<other_error>you did the bad thing</other_error>\n"
       raise OpenURI::HTTPError.new('500 Internal Server Error', StringIO.new(xml))
     end
 
-    e = assert_raise RCRest::CommunicationError do @fs.do_get end
+    e = assert_raises RCRest::CommunicationError do @fs.do_get end
 
     expected = <<-EOF.strip
 Communication error: 500 Internal Server Error(OpenURI::HTTPError)
 
 unhandled error:
+<?xml version=\"1.0\"?>
 <other_error>you did the bad thing</other_error>
     EOF
 
-    assert_equal expected, e.message
+    assert_equal expected, e.message.strip
   end
 
   def test_do_get_eof_error
@@ -120,11 +120,11 @@ unhandled error:
       raise EOFError, 'end of file reached'
     end
 
-    assert_raise RCRest::CommunicationError do @fs.do_get end
+    assert_raises RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_post
-    xml = '<result>stuff</result>'
+    xml = "<?xml version=\"1.0\"?>\n<result>stuff</result>\n"
     Net::HTTP.responses << xml
 
     result = @fs.do_post
@@ -143,7 +143,7 @@ unhandled error:
     xml = '<result>stuff</result><extra/>'
     Net::HTTP.responses << xml
 
-    assert_raise RCRest::CommunicationError do @fs.do_post end
+    assert_raises RCRest::CommunicationError do @fs.do_post end
   end
 
   def test_do_post_eof_error
@@ -151,11 +151,11 @@ unhandled error:
       raise IOError, 'end of file reached'
     end
 
-    assert_raise RCRest::CommunicationError do @fs.do_post end
+    assert_raises RCRest::CommunicationError do @fs.do_post end
   end
 
   def test_do_post_multipart
-    xml = '<result>stuff</result>'
+    xml = "<?xml version=\"1.0\"?>\n<result>stuff</result>\n"
     Net::HTTP.responses << xml
 
     result = @fs.do_post_multipart
@@ -183,22 +183,22 @@ value\r
       raise EOFError, 'end of file reached'
     end
 
-    assert_raise RCRest::CommunicationError do @fs.do_post_multipart end
+    assert_raises RCRest::CommunicationError do @fs.do_post_multipart end
   end
 
   def test_do_post_multipart_bad_xml
     xml = '<result>stuff</result><extra/>'
     Net::HTTP.responses << xml
 
-    assert_raise RCRest::CommunicationError do @fs.do_post_multipart end
+    assert_raises RCRest::CommunicationError do @fs.do_post_multipart end
   end
 
 end
 
-class TestRCRest < Test::Unit::TestCase
+class TestRCRest < MiniTest::Unit::TestCase
 
   def test_initialize
-    e = assert_raise NotImplementedError do
+    e = assert_raises NotImplementedError do
       RCRest.new
     end
 
@@ -207,7 +207,7 @@ class TestRCRest < Test::Unit::TestCase
 
   def test_check_error
     r = RCRest.allocate
-    assert_raise NotImplementedError do r.check_error nil end
+    assert_raises NotImplementedError do r.check_error nil end
   end
 
   def test_make_multipart
@@ -261,7 +261,7 @@ y z\r
 
   def test_parse_response
     r = RCRest.allocate
-    assert_raise NotImplementedError do r.parse_response nil end
+    assert_raises NotImplementedError do r.parse_response nil end
   end
 
 end

@@ -1,6 +1,6 @@
 require 'net/http'
 require 'open-uri'
-require 'rexml/document'
+require 'nokogiri'
 
 ##
 # Abstract class for implementing REST APIs.
@@ -49,7 +49,7 @@ class RCRest
   ##
   # You are using this version of RCRest
 
-  VERSION = '2.2.1'
+  VERSION = '3.0.0'
 
   ##
   # Abstract Error class.
@@ -88,8 +88,8 @@ class RCRest
   end
 
   ##
-  # Must extract and raise an error from +xml+, an REXML::Document, if any.
-  # Must return if no error could be found.
+  # Must extract and raise an error from +xml+, an Nokogiri::XML::Document, if
+  # any. Must return if no error could be found.
 
   def check_error(xml)
     raise NotImplementedError
@@ -111,27 +111,27 @@ class RCRest
 
   ##
   # Performs a GET request for method +method+ with +params+.  Calls
-  # #parse_response on the concrete class with an REXML::Document instance and
-  # returns its result.
+  # #parse_response on the concrete class with an Nokogiri::XML::Document
+  # instance and returns its result.
 
   def get(method, params = {})
     url = make_url method, params
 
     url.open do |xml|
-      res = REXML::Document.new xml.read
+      res = Nokogiri::XML(xml, nil, nil, 0)
 
       check_error res
 
       return parse_response(res)
     end
   rescue IOError, SystemCallError, SocketError, Timeout::Error,
-         REXML::ParseException => e
+         Nokogiri::XML::SyntaxError => e
     raise CommunicationError.new(e)
   rescue OpenURI::HTTPError => e
     begin
-      xml = REXML::Document.new e.io.read
+      xml = Nokogiri::XML(e.io, nil, nil, 0)
       check_error xml
-    rescue REXML::ParseException => e
+    rescue Nokogiri::XML::SyntaxError => e
     end
     new_e = CommunicationError.new e
     new_e.message << "\n\nunhandled error:\n#{xml.to_s}"
@@ -203,8 +203,8 @@ class RCRest
   end
 
   ##
-  # Must parse results from +xml+, an REXML::Document, into something sensible
-  # for the API.
+  # Must parse results from +xml+, an Nokogiri::XML::Document, into something
+  # sensible for the API.
 
   def parse_response(xml)
     raise NotImplementedError
@@ -212,8 +212,8 @@ class RCRest
 
   ##
   # Performs a POST request for method +method+ with +params+.  Calls
-  # #parse_response on the concrete class with an REXML::Document instance and
-  # returns its result.
+  # #parse_response on the concrete class with an Nokogiri::XML::Document
+  # instance and returns its result.
 
   def post(method, params = {})
     url = make_url method, params
@@ -228,16 +228,16 @@ class RCRest
       http.request req
     end
 
-    xml = REXML::Document.new res.body
+    xml = Nokogiri::XML(res.body, nil, nil, 0)
 
     check_error xml
 
     parse_response xml
   rescue SystemCallError, SocketError, Timeout::Error, IOError,
-         REXML::ParseException => e
+         Nokogiri::XML::SyntaxError => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
-    xml = REXML::Document.new e.res.body
+    xml = Nokogiri::XML(e.res.body) { |cfg| cfg.strict }
     check_error xml
     raise CommunicationError.new(e)
   end
@@ -245,7 +245,7 @@ class RCRest
   ##
   # Performs a POST request for method +method+ with +params+, submitting a
   # multipart form.  Calls #parse_response on the concrete class with an
-  # REXML::Document instance and returns its result.
+  # Nokogiri::XML::Document instance and returns its result.
 
   def post_multipart(method, params = {})
     url = make_url method, {}
@@ -261,16 +261,16 @@ class RCRest
       http.request req
     end
 
-    xml = REXML::Document.new res.body
+    xml = Nokogiri::XML(res.body, nil, nil, 0)
 
     check_error xml
 
     parse_response xml
   rescue SystemCallError, SocketError, Timeout::Error, IOError,
-         REXML::ParseException => e
+         Nokogiri::XML::SyntaxError => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
-    xml = REXML::Document.new e.res.body
+    xml = Nokogiri::XML(e.res.body, nil, nil, 0)
     check_error xml
     raise CommunicationError.new(e)
   end

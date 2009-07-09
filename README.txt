@@ -1,16 +1,12 @@
 = rc-rest
 
-Rubyforge Project:
+* http://seattlerb.rubyforge.org/rc-rest
+* http://rubyforge.org/projects/rctools/
 
-http://rubyforge.org/projects/rctools/
+== DESCRIPTION:
 
-Documentation:
-
-http://dev.robotcoop.com/Libraries/rc-rest/
-
-== About
-
-This is an abstract class for creating wrappers for REST web service APIs.
+Robot Co-op REST web services base class. This library makes it easy to
+implement REST-like web services APIs.
 
 == Installing rc-rest
 
