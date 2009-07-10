@@ -26,3 +26,7 @@ RCRest#get and RCRest#make_url now accept a method argument as the
 first parameter.  To use 2.x, pass the last component of the path to
 RCRest#get or RCRest#make_url.
 
+== Upgrading from 2.x
+
+RCRest now uses Nokogiri instead of REXML.
+
