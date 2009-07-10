@@ -2,6 +2,9 @@ require 'net/http'
 
 class Net::HTTPResponse
 
+  undef_method :body  if method_defined? :body
+  undef_method :body= if method_defined? :body=
+
   ##
   # Setter for body content
 

@@ -100,7 +100,7 @@ class RCRest
 
     params.each do |k,v|
       if v.respond_to? :each and not String === v then
-        v.each { |v| expanded_params << [k, v] }
+        v.each { |s| expanded_params << [k, s] }
       else
         expanded_params << [k, v]
       end
