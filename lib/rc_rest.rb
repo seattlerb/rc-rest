@@ -49,7 +49,7 @@ class RCRest
   ##
   # You are using this version of RCRest
 
-  VERSION = '3.0.0'
+  VERSION = '3.0.1'
 
   ##
   # Abstract Error class.
