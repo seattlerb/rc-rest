@@ -1,35 +1,39 @@
-= 3.0.0
+== 3.0.1
+
+* Fix minitest dependency
+
+== 3.0.0
 
 * Upgrade to Nokogiri from REXML.  This is incompatible with 2.x and older.
   Thanks Aaron Patterson!
 
-= 2.2.1
+== 2.2.1
 
 * Turn IOError into RCRest::CommunicationError for #post and #post_multipart.
 
-= 2.2.0
+== 2.2.0
 
 * Moved to seattlerb rubyforge project
 * Moved to p4
 * Wrap communication errors in RCRest::CommunicationError
 
-= 2.1.1
+== 2.1.1
 
 * Fix dependency on ZenTest for testing
 
-= 2.1.0
+== 2.1.0
 
 * Don't split strings into extra params pairs on newlines
 * Added RCRest#post_multipart and RCRest#make_multipart
 * Fixed various query parameter incompatiblities
 
-= 2.0.0
+== 2.0.0
 
 * Added +method+ parameter to RCRest#make_url to add path components
   to a generic endpoint
 * Added RCRest#post
 
-= 1.0.0
+== 1.0.0
 
 * Birthday!
 
