@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'minitest/autorun'
-require 'rc_rest/uri_stub'
+require 'rc_rest/net_http_persistent_stub'
 require 'rc_rest/net_http_stub'
 require 'rc_rest'
 
