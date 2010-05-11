@@ -1,3 +1,9 @@
+== 4.0
+
+* rc-rest now depends on Net::HTTP::Persistent.
+* URI::HTTP stubs no longer work.  Use rc_rest/net_http_persistent_stub
+  instead.  See Net::HTTP::Persistent for details.
+
 == 3.0.1
 
 * Fix minitest dependency

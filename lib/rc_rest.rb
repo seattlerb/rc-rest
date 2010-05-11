@@ -1,5 +1,4 @@
-require 'net/http'
-require 'open-uri'
+require 'net/http/persistent'
 require 'nokogiri'
 
 ##
@@ -49,7 +48,7 @@ class RCRest
   ##
   # You are using this version of RCRest
 
-  VERSION = '3.0.1'
+  VERSION = '4.0'
 
   ##
   # Abstract Error class.
@@ -71,6 +70,7 @@ class RCRest
 
     def initialize(original_exception)
       @original_exception = original_exception
+
       message = "Communication error: #{original_exception.message}(#{original_exception.class})"
       super message
     end
@@ -115,27 +115,39 @@ class RCRest
   # instance and returns its result.
 
   def get(method, params = {})
+    @http ||= Net::HTTP::Persistent.new
+
     url = make_url method, params
 
-    url.open do |xml|
-      res = Nokogiri::XML(xml, nil, nil, 0)
+    http_response = @http.request url
+
+    case http_response
+    when Net::HTTPSuccess
+      res = Nokogiri::XML http_response.body, nil, nil, 0
 
       check_error res
 
-      return parse_response(res)
+      parse_response res
+    when Net::HTTPMovedPermanently,
+         Net::HTTPFound,
+         Net::HTTPSeeOther,
+         Net::HTTPTemporaryRedirect then
+      # TODO
+    else
+      begin
+        xml = Nokogiri::XML http_response.body, nil, nil, 0
+        check_error xml
+      rescue Nokogiri::XML::SyntaxError => e
+      end
+
+      e = CommunicationError.new http_response
+      e.message << "\n\nunhandled error:\n#{xml.to_s}"
+
+      raise e
     end
-  rescue IOError, SystemCallError, SocketError, Timeout::Error,
+  rescue Net::HTTP::Persistent::Error, SocketError, Timeout::Error,
          Nokogiri::XML::SyntaxError => e
     raise CommunicationError.new(e)
-  rescue OpenURI::HTTPError => e
-    begin
-      xml = Nokogiri::XML(e.io, nil, nil, 0)
-      check_error xml
-    rescue Nokogiri::XML::SyntaxError => e
-    end
-    new_e = CommunicationError.new e
-    new_e.message << "\n\nunhandled error:\n#{xml.to_s}"
-    raise new_e
   end
 
   ##

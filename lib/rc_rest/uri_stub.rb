@@ -1,55 +1,73 @@
-require 'open-uri'
-
-module URI # :nodoc:
-end
+require 'net/http/persistent'
 
 ##
-# This stub overrides OpenURI's open method to allow programs that use OpenURI
-# to be easily tested.
+# This stub overrides Net::HTTP::Persistent's request method to allow programs
+# that use Net::HTTP::Persistent to be easily tested.
 #
 # == Usage
 #
-#   require 'rc_rest/uri_stub'
-#   
-#   class TestMyClass < Test::Unit::TestCase
-#     
+#   require 'rc_rest/net_http_persistent_stub'
+#
+#   class TestMyClass < MiniTest::Unit::TestCase
+#
 #     def setup
-#       URI::HTTP.responses = []
-#       URI::HTTP.uris = []
-#       
+#       Net::HTTP::Persistent.responses = []
+#       Net::HTTP::Persistent.uris = []
+#
 #       @obj = MyClass.new
 #     end
-#     
+#
 #     def test_my_method
-#       URI::HTTP.responses << 'some text open would ordinarily return'
-#       
+#       Net::HTTP::Persistent.responses << 'some text request would return'
+#
 #       result = @obj.my_method
-#       
+#
 #       assert_equal :something_meaninfgul, result
-#       
-#       assert_equal true, URI::HTTP.responses.empty?
-#       assert_equal 1, URI::HTTP.uris.length
-#       assert_equal 'http://example.com/path', URI::HTTP.uris.first
+#
+#       assert_equal true, Net::HTTP::Persistent.responses.empty?
+#       assert_equal 1, Net::HTTP::Persistent.uris.length
+#       assert_equal 'http://example.com/path', Net::HTTP::Persistent.uris.first
 #     end
-#     
+#
 #  end
 
-class URI::HTTP # :nodoc:
+class Net::HTTP::Persistent
 
   class << self
-    attr_accessor :responses, :uris
+
+    ##
+    # List of responses #request should return.
+    #
+    # If a String is given a Net::HTTPOK is created
+    #
+    # If a proc is given, it is called.  The proc should raise an exception or
+    # return a Net::HTTPResponse subclass.
+    #
+    # Unlike URI::HTTP from rc-rest 3.x and earlier you must return a
+    # Net::HTTPResponse subclass.
+
+    attr_accessor :responses
+
+    ##
+    # URIs recorded
+
+    attr_accessor :uris
+
   end
 
-  alias original_open open
+  alias original_request request
 
-  def open
-    self.class.uris << self.to_s
+  def request uri
+    self.class.uris << uri.to_s
     response = self.class.responses.shift
-    if response.respond_to? :call then
-      response.call
-    else
-      yield StringIO.new(response)
-    end
+
+    response = response.call if response.respond_to? :call
+
+    return response if Net::HTTPResponse === response
+
+    r = Net::HTTPOK.new '1.0', 200, 'OK'
+    r.body = response
+    r
   end
 
 end

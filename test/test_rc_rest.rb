@@ -37,8 +37,8 @@ end
 class TestFakeService < MiniTest::Unit::TestCase
 
   def setup
-    URI::HTTP.responses = []
-    URI::HTTP.uris = []
+    Net::HTTP::Persistent.responses = []
+    Net::HTTP::Persistent.uris = []
 
     Net::HTTP.params = []
     Net::HTTP.paths = []
@@ -62,49 +62,53 @@ class TestFakeService < MiniTest::Unit::TestCase
 
   def test_do_get
     xml = "<?xml version=\"1.0\"?>\n<result>stuff</result>\n"
-    URI::HTTP.responses << xml
+    Net::HTTP::Persistent.responses << xml
 
     result = @fs.do_get
 
     assert_equal xml, result.to_s
-    assert_equal 'http://example.com/method?', URI::HTTP.uris.first
+    assert_equal 'http://example.com/method?', Net::HTTP::Persistent.uris.first
   end
 
   def test_do_get_bad_xml
     xml = '<result>stuff</result><extra/>'
-    URI::HTTP.responses << xml
+    Net::HTTP::Persistent.responses << xml
 
     assert_raises RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_get_error_400
-    URI::HTTP.responses << proc do
-      xml = '<error>you did the bad thing</error>'
-      raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
+    Net::HTTP::Persistent.responses << proc do
+      r = Net::HTTPBadRequest.new '1.0', 400, 'Bad Request'
+      r.body = '<error>you did the bad thing</error>'
+      r
     end
 
     assert_raises FakeService::Error do @fs.do_get end
   end
 
   def test_do_get_error_400_bad_xml
-    URI::HTTP.responses << proc do
-      xml = '<error>you did the bad thing</error><extra/>'
-      raise OpenURI::HTTPError.new('400 Bad Request', StringIO.new(xml))
+    Net::HTTP::Persistent.responses << proc do
+      r = Net::HTTPBadRequest.new '1.0', 400, 'Bad Request'
+      r.body = '<error>you did the bad thing</error><extra/>'
+      r
     end
 
     assert_raises RCRest::CommunicationError do @fs.do_get end
   end
 
   def test_do_get_error_unhandled
-    URI::HTTP.responses << proc do
+    Net::HTTP::Persistent.responses << proc do
       xml = "<?xml version=\"1.0\"?>\n<other_error>you did the bad thing</other_error>\n"
-      raise OpenURI::HTTPError.new('500 Internal Server Error', StringIO.new(xml))
+      r = Net::HTTPInternalServerError.new '1.0', 500, 'Internal Server Error'
+      r.body = xml
+      r
     end
 
     e = assert_raises RCRest::CommunicationError do @fs.do_get end
 
     expected = <<-EOF.strip
-Communication error: 500 Internal Server Error(OpenURI::HTTPError)
+Communication error: Internal Server Error(Net::HTTPInternalServerError)
 
 unhandled error:
 <?xml version=\"1.0\"?>
@@ -114,10 +118,9 @@ unhandled error:
     assert_equal expected, e.message.strip
   end
 
-  def test_do_get_eof_error
-    URI::HTTP.responses << proc do
-      xml = '<error>you did the bad thing</error>'
-      raise EOFError, 'end of file reached'
+  def test_do_get_net_http_persistent_error
+    Net::HTTP::Persistent.responses << proc do
+      raise Net::HTTP::Persistent::Error, 'end of file reached'
     end
 
     assert_raises RCRest::CommunicationError do @fs.do_get end
