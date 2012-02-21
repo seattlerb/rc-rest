@@ -1,5 +1,5 @@
 require 'net/http/persistent'
-require 'nokogiri'
+require 'net/https'
 
 ##
 # Abstract class for implementing REST APIs.
@@ -16,31 +16,31 @@ require 'nokogiri'
 # perform URL customization, override +make_url+ and +make_multipart+.
 #
 #   class FakeService < RCRest
-#   
+#
 #     class Error < RCRest::Error; end
-#   
+#
 #     def initialize(appid)
 #       @appid = appid
 #       @url = URI.parse 'http://example.com/api/'
 #     end
-#   
+#
 #     def check_error(xml)
 #       raise Error, xml.elements['error'].text if xml.elements['error']
 #     end
-#   
+#
 #     def make_url(method, params)
 #       params[:appid] = @appid
 #       super method, params
 #     end
-#   
+#
 #     def parse_response(xml)
 #       return xml
 #     end
-#   
+#
 #     def test(query)
 #       get :test, :q => query
 #     end
-#   
+#
 #   end
 
 class RCRest
@@ -88,10 +88,10 @@ class RCRest
   end
 
   ##
-  # Must extract and raise an error from +xml+, an Nokogiri::XML::Document, if
-  # any. Must return if no error could be found.
+  # Must extract and raise an error from +body+. Must return if no
+  # error could be found.
 
-  def check_error(xml)
+  def check_error(body)
     raise NotImplementedError
   end
 
@@ -110,9 +110,9 @@ class RCRest
   end
 
   ##
-  # Performs a GET request for method +method+ with +params+.  Calls
-  # #parse_response on the concrete class with an Nokogiri::XML::Document
-  # instance and returns its result.
+  # Performs a GET request for method +method+ with +params+. Calls
+  # #parse_response on the concrete class the body and returns its
+  # result.
 
   def get(method, params = {})
     @http ||= Net::HTTP::Persistent.new
@@ -120,29 +120,22 @@ class RCRest
     url = make_url method, params
 
     http_response = @http.request url
+    body = http_response.body
 
     case http_response
     when Net::HTTPSuccess
-      res = Nokogiri::XML http_response.body, nil, nil, 0
-
-      check_error res
-
-      parse_response res
+      check_error body
+      parse_response body
     when Net::HTTPMovedPermanently,
          Net::HTTPFound,
          Net::HTTPSeeOther,
          Net::HTTPTemporaryRedirect then
       # TODO
     else
-      begin
-        xml = Nokogiri::XML http_response.body, nil, nil, 0
-        check_error xml
-      rescue Nokogiri::XML::SyntaxError => e
-      end
+      check_error body
 
       e = CommunicationError.new http_response
-      e.message << "\n\nunhandled error:\n#{xml.to_s}"
-
+      e.message << "\n\nunhandled error:\n#{body}"
       raise e
     end
   rescue Net::HTTP::Persistent::Error, SocketError, Timeout::Error,
@@ -215,19 +208,19 @@ class RCRest
   end
 
   ##
-  # Must parse results from +xml+, an Nokogiri::XML::Document, into something
-  # sensible for the API.
+  # Must parse results from +body+, into something sensible for the
+  # API.
 
-  def parse_response(xml)
+  def parse_response(body)
     raise NotImplementedError
   end
 
   ##
-  # Performs a POST request for method +method+ with +params+.  Calls
-  # #parse_response on the concrete class with an Nokogiri::XML::Document
-  # instance and returns its result.
+  # Performs a POST request for method +method+ with +params+. Calls
+  # #parse_response on the concrete class with the body and returns
+  # its result.
 
-  def post(method, params = {})
+  def post(method, params = {}, headers = {})
     url = make_url method, params
     query = url.query
     url.query = nil
@@ -236,28 +229,34 @@ class RCRest
     req.body = query
     req.content_type = 'application/x-www-form-urlencoded'
 
-    res = Net::HTTP.start url.host, url.port do |http|
+    headers.each do |k,v|
+      req.add_field k, v
+    end
+
+require 'pp'
+pp req
+
+    http = Net::HTTP.new url.host, url.port
+    http.set_debug_output $stderr
+    http.use_ssl = URI::HTTPS === url
+    res = http.start do
       http.request req
     end
 
-    xml = Nokogiri::XML(res.body, nil, nil, 0)
-
-    check_error xml
-
-    parse_response xml
-  rescue SystemCallError, SocketError, Timeout::Error, IOError,
-         Nokogiri::XML::SyntaxError => e
+    body = res.body
+    check_error body
+    parse_response body
+  rescue SystemCallError, SocketError, Timeout::Error, IOError => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
-    xml = Nokogiri::XML(e.res.body) { |cfg| cfg.strict }
-    check_error xml
+    check_error e.res.body
     raise CommunicationError.new(e)
   end
 
   ##
-  # Performs a POST request for method +method+ with +params+, submitting a
-  # multipart form.  Calls #parse_response on the concrete class with an
-  # Nokogiri::XML::Document instance and returns its result.
+  # Performs a POST request for method +method+ with +params+,
+  # submitting a multipart form. Calls #parse_response on the concrete
+  # class with the body and returns its result.
 
   def post_multipart(method, params = {})
     url = make_url method, {}
@@ -273,19 +272,45 @@ class RCRest
       http.request req
     end
 
-    xml = Nokogiri::XML(res.body, nil, nil, 0)
-
-    check_error xml
-
-    parse_response xml
-  rescue SystemCallError, SocketError, Timeout::Error, IOError,
-         Nokogiri::XML::SyntaxError => e
+    body = res.body
+    check_error body
+    parse_response body
+  rescue SystemCallError, SocketError, Timeout::Error, IOError => e
     raise CommunicationError.new(e)
   rescue Net::HTTPError => e
-    xml = Nokogiri::XML(e.res.body, nil, nil, 0)
-    check_error xml
+    check_error e.res.body
     raise CommunicationError.new(e)
   end
-
 end
 
+class XmlRest < RCRest
+  ##
+  # For XML RESTful APIs, this does a first pass XML parse. Intended
+  # to be subclassed with a call to super:
+  #
+  #  class MyAPI < XmlRest
+  #    def parse_response body
+  #      body = super
+  #      # ... app specific handling ...
+  #    end
+  #  end
+
+  def parse_response body
+    Nokogiri::XML body, nil, nil, 0
+  end
+
+  ##
+  # For XML RESTful APIs, this does a first pass XML parse. Intended
+  # to be subclassed with a call to super:
+  #
+  #  class MyAPI < XmlRest
+  #    def check_error body
+  #      body = super
+  #      # ... app specific handling ...
+  #    end
+  #  end
+
+  def check_error body
+    Nokogiri::XML body, nil, nil, 0
+  end
+end
